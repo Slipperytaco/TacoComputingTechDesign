@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <link rel="stylesheet" href="stageScoreStyling.css">
+</head>
+<body>
+    <nav>
+            <a href="index1.html">Player Count</a>
+            <a href="stage_score.html">Player Score History</a>
+    </nav>
+    <h1>Performance Trends over time, by Archer ID</h1>
+    <div class="search-container">
+
+        <input type="text" id="archer_id_input" placeholder="Enter archer id...">
+        <button id="search_button">Search</button>
+    </div>
+    <div id="graph"></div>
+    <script>
+    let dataByRound = new Map(); // Global variable to store data by round name.
+    let colorScale; // Global variable for color scale.
+    let svg; // Global variable for SVG element.
+    let tooltip; // Global variable for tooltip element.
+    let margin; // Global variable for margin.
+
+    tooltip = d3.select("#graph")
+      .append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0);
+
+    function fetchAndVisualizeData() {
+      var archer_id = document.getElementById('archer_id_input').value;
+
+      fetch('stage_scoreData.php?archer_id=' + archer_id)
+        .then(response => response.json())
+        .then(data => {
+          processData(data);
+          visualizeData();
+        });
+    }
+
+    function processData(data) {
+      dataByRound = d3.group(data, d => d.round_name);
+
+      const roundNames = Array.from(dataByRound.keys());
+      if (!colorScale) {
+        colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(roundNames);
+      } else {
+        colorScale.domain(roundNames);
+      }
+    }
+
+    function showTooltip(d, event) {
+      const tooltipWidth = parseFloat(tooltip.style("width"));
+      const tooltipHeight = parseFloat(tooltip.style("height"));
+
+      let xPosition = event.clientX - tooltipWidth / 2;
+      let yPosition = event.clientY - tooltipHeight - 10;
+
+      const graphWidth = parseFloat(svg.attr("width")) + margin.left + margin.right;
+      if (xPosition + tooltipWidth > graphWidth) {
+        xPosition = graphWidth - tooltipWidth;
+      }
+
+      const graphHeight = parseFloat(svg.attr("height")) + margin.top + margin.bottom;
+      if (yPosition < 0) {
+        yPosition = 0;
+      } else if (yPosition + tooltipHeight > graphHeight) {
+        yPosition = graphHeight - tooltipHeight;
+      }
+
+      tooltip
+        .style("opacity", 1)
+        .html(`Date: ${d.datetime}<br>Value: ${d.stage_total}`)
+        .style("left", xPosition + "px")
+        .style("top", yPosition + "px");
+    }
+
+
+    function hideTooltip() {
+      tooltip.style("opacity", 0);
+    }
+
+    function visualizeData() {
+      margin = { top: 20, right: 20, bottom: 50, left: 50 };
+
+      const width = 960 - margin.left - margin.right;
+      const height = 500 - margin.top - margin.bottom;
+
+      const parseDate = d3.timeParse("%Y-%m-%d");
+      const xScale = d3.scaleTime()
+        .domain(d3.extent(Array.from(dataByRound.values()).flat(), d => parseDate(d.datetime)))
+        .range([0, width]);
+
+      const yScale = d3.scaleLinear()
+        .domain([0, d3.max(Array.from(dataByRound.values()).flat(), d => d.stage_total)])
+        .range([height, 0]);
+
+      if (!svg) {
+        svg = d3.select("#graph")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        svg.append("g")
+          .attr("class", "x-axis")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(xScale));
+
+        svg.append("g")
+          .attr("class", "y-axis")
+          .call(d3.axisLeft(yScale));
+
+        tooltip = d3.select("#graph")
+          .append("div")
+          .attr("class", "tooltip")
+          .style("opacity", 0);
+      } else {
+        svg.select(".x-axis")
+          .transition()
+          .duration(500)
+          .call(d3.axisBottom(xScale));
+
+        svg.select(".y-axis")
+          .transition()
+          .duration(500)
+          .call(d3.axisLeft(yScale));
+      }
+
+      svg.selectAll(".line")
+        .data(Array.from(dataByRound.values()))
+        .join("path")
+        .attr("class", "line")
+        .attr("fill", "none")
+        .attr("stroke", (values, i) => colorScale(i))
+        .attr("stroke-linejoin", "round")
+        .attr("d", values => {
+          return d3.line()
+            .defined(d => !isNaN(d.stage_total))
+            .x(d => xScale(parseDate(d.datetime)))
+            .y(d => yScale(d.stage_total))(values);
+        });
+
+      const dots = svg.selectAll(".dot")
+        .data(Array.from(dataByRound.values()).flat())
+        .join("circle")
+        .attr("class", "dot")
+        .attr("cx", d => xScale(parseDate(d.datetime)))
+        .attr("cy", d => yScale(d.stage_total))
+        .attr("r", 3)
+        .attr("fill", (d, i) => colorScale(d.round_name))
+        .attr("stroke", "none");
+
+      dots.on("mouseover", function(event, d) {
+          showTooltip(d, event);
+        })
+        .on("mousemove", function(event, d) {
+          showTooltip(d, event);
+        })
+        .on("mouseout", hideTooltip);
+//remove prev legend 
+      svg.select(".legend").remove();
+
+      const legend = svg.append("g")
+        .attr("class", "legend")
+        .attr("transform", `translate(${width - 100}, 350)`);
+
+      legend.selectAll("circle")
+        .data(Array.from(dataByRound.keys()))
+        .join("circle")
+        .attr("cx", 0)
+        .attr("cy", (d, i) => i * 20)
+        .attr("r", 5)
+        .style("fill", (d, i) => colorScale(i));
+
+      legend.selectAll("text")
+        .data(Array.from(dataByRound.keys()))
+        .join("text")
+        .attr("x", 12)
+        .attr("y", (d, i) => i * 20)
+        .text(d => d)
+        .attr("dy", "0.35em")
+        .style("font-size", "12px")
+        .attr("alignment-baseline", "middle");
+
+    }
+
+    function sanitizeClassName(className) {
+      return className.replace(/\//g, "_");
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchButton = document.getElementById('search_button');
+      searchButton.addEventListener('click', fetchAndVisualizeData);
+    });
+
+    </script>
+</body>
+</html>

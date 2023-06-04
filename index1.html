@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>D3 Visulisation of SQL</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!--<link rel="stylesheet" type = "text/css" href="styling/index1.css" /> -->
+    <link rel="stylesheet" href="index1.css" />
+</head>
+  <body>
+    <nav>
+            <a href="index1.html">Player Count</a>
+            <a href="stage_score.html">Player Score History</a>
+    </nav>
+    <h1>Number of players in each Competition: </h1>
+
+    <svg id="chart" width="1200" height="800"></svg>
+    <script>
+        d3.json("http://localhost/projecy/data.php").then(function(data) {
+        //console.log(data);
+        //calculates the number of players in each class: 
+        var counts = {};
+        data.forEach(function(d) {
+          var classification = d.classification_type;
+          if(classification in counts) {
+                counts[classification] += 1;
+          } else {
+                counts[classification] = 1;
+          }
+        });
+        //create array from counts 
+        var dataArray = Object.keys(counts).map(function(key) {
+                return {
+                        classification: key,
+                        count: counts[key]
+                };
+        });
+        //svg dimensions: 
+        var svg = d3.select("#chart"), 
+                margin = {top: 20, right: 20, bottom: 100, left: 40},
+                width = 1200 - margin.left - margin.right,
+                height = 800 - margin.top - margin.bottom;
+
+        var x = d3.scaleBand()
+                .rangeRound([0, width])
+                .padding(0.1);
+
+        var y = d3.scaleLinear()
+                .rangeRound([height, 0]);
+        
+        var g = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        
+        x.domain(dataArray.map(function(d) {return d.classification; }));
+        y.domain([0, d3.max(dataArray, function(d) { return d.count; })]);
+        
+        var xAxis = g.append("g")
+            .attr("class", "axis axis--x")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+            
+        xAxis.selectAll("text")
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em")
+            .attr("transform", "rotate(-65)") //rotates x axis labels so they r vert
+            .text(function(d) { return d; }); 
+
+
+        g.append("g")
+                .attr("class", "axis axis--y")
+                .call(d3.axisLeft(y).ticks(10))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", "0.71em")
+                .attr("text-anchor", "end")
+                .text("Frequency");
+
+        var tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        g.selectAll(".bar")
+         .data(dataArray)
+         .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", function(d) { return x(d.classification); })
+                .attr("y", function(d) { return y(d.count); })
+                .attr("width", x.bandwidth())
+                .attr("height", function(d) { return height - y(d.count); })
+                .on("mouseover", function(event, d) { //hover function 
+                    d3.select(this)
+                        .style("fill", "orange");
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html("Players: " + d.count)
+                        .style("left", (event.pageX) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function(d) {
+                    d3.select(this)
+                        .style("fill", "steelblue");
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+        }).catch(function(error){
+                console.log(error);
+        });
+    </script>
+  </body>
+</html>

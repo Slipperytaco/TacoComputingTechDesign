@@ -1,0 +1,50 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0; /* light gray background */
+}
+
+h1 {
+    text-align: center;
+}
+
+.bar {
+	fill: steelblue;
+}
+.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 60px;
+        height: 28px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: lightsteelblue;
+        border: 0px;
+        border-radius: 8px;
+        pointer-events: none;
+    }
+
+    /* Nav bar */
+nav {
+    background-color: #333;
+    overflow: hidden;
+}
+
+nav a {
+    display: inline-block;
+    color: #f2f2f2;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+nav a:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+#chart {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80vh; /* adjust height as needed */
+}
